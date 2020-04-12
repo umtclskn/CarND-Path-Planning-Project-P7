@@ -145,3 +145,45 @@ that's just a guess.
 One last note here: regardless of the IDE used, every submitted project must
 still be compilable with cmake and make./
 
+
+## Reflection
+* #### 1. Behavior Planning Flow:
+  * 1.1 Get ego car's localization data at 78-83
+  >        double car_x = j[1]["x"];
+  >        double car_y = j[1]["y"];
+  >        double car_s = j[1]["s"];
+  >        double car_d = j[1]["d"];
+  >        double car_yaw = j[1]["yaw"];
+  >        double car_speed = j[1]["speed"];
+  
+  * 1.2 Using sensor fusion data & State Machine for defined which lane line using at 121-224. 
+  It's important that the car doesn't crash into any of the other vehicles on the road, all of which are moving at different speeds around the speed limit and can change lanes.
+
+	The  `sensor_fusion`  variable contains all the information about the cars on the right-hand side of the road.
+	The data format for each car is: [ id, x, y, vx, vy, s, d]. The id is a unique identifier for that car.
+  * 1.3  Interpolating Trajectory Points using spline interpolation
+  
+      The `getXY` helper function can transform (s,d) points to (x,y) points for the returned path.
+      Converting Frenet Coordinates
+We have included a helper function,  `getXY`, which takes in Frenet (s,d) coordinates and transforms them to (x,y) coordinates.
+
+    So instead of just looking at one distance increment, we're looking out basically 30, 60, 90.  And instead of looping through and creating 50 of these you're just creating three of them
+
+   > vector<double> next_wp0 = getXY(car_s+30,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+  > vector<double> next_wp1 = getXY(car_s+60,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+  > vector<double> next_wp2 = getXY(car_s+90,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+
+  For  smoothing lane changes we are using spline interpolation detail from :
+ [https://kluge.in-chemnitz.de/opensource/spline](https://kluge.in-chemnitz.de/opensource/spline/)
+
+* #### 2. Potential shortcomings
+	This pipeline works without collision and ego car stay on lane, change lane correctly but it is far from a human driver habits.
+* #### 3. Possible improvements
+	A possible improvement would be to	implement a deep neural network for data driven planning.
+
+   
+
+
+
+  
+
