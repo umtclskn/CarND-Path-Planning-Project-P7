@@ -59,71 +59,84 @@ int ClosestWaypoint(double x, double y, const vector<double> &maps_x,
 }
 
 // Returns next waypoint of the closest waypoint
-int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x, 
-                 const vector<double> &maps_y) {
-  int closestWaypoint = ClosestWaypoint(x,y,maps_x,maps_y);
+int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y, vector<double> maps_dx, vector<double> maps_dy)
+{
 
-  double map_x = maps_x[closestWaypoint];
-  double map_y = maps_y[closestWaypoint];
+    int closestWaypoint = ClosestWaypoint(x,y,maps_x,maps_y);
 
-  double heading = atan2((map_y-y),(map_x-x));
+    double map_x = maps_x[closestWaypoint];
+    double map_y = maps_y[closestWaypoint];
 
-  double angle = fabs(theta-heading);
-  angle = std::min(2*pi() - angle, angle);
+    //heading vector
+    double hx = map_x-x;
+    double hy = map_y-y;
 
-  if (angle > pi()/2) {
-    ++closestWaypoint;
-    if (closestWaypoint == maps_x.size()) {
-      closestWaypoint = 0;
+    //Normal vector:
+    double nx = maps_dx[closestWaypoint];
+    double ny = maps_dy[closestWaypoint];
+
+    //Vector into the direction of the road (perpendicular to the normal vector)
+    double vx = -ny;
+    double vy = nx;
+
+    //If the inner product of v and h is positive then we are behind the waypoint so we do not need to
+    //increment closestWaypoint, otherwise we are beyond the waypoint and we need to increment closestWaypoint.
+
+    double inner = hx*vx+hy*vy;
+    if (inner<0.0) {
+        closestWaypoint++;
     }
-  }
 
-  return closestWaypoint;
+    return closestWaypoint;
 }
 
+
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
-vector<double> getFrenet(double x, double y, double theta,
-                         const vector<double> &maps_x,
-                         const vector<double> &maps_y) {
-  int next_wp = NextWaypoint(x,y, theta, maps_x,maps_y);
+vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y,vector<double> maps_dx, vector<double> maps_dy)
+{
+    int next_wp = NextWaypoint(x,y, theta, maps_x,maps_y, maps_dx, maps_dy);
 
-  int prev_wp;
-  prev_wp = next_wp-1;
-  if (next_wp == 0) {
-    prev_wp  = maps_x.size()-1;
-  }
+    int prev_wp;
+    prev_wp = next_wp-1;
+    if(next_wp == 0)
+    {
+        prev_wp  = maps_x.size()-1;
+    }
 
-  double n_x = maps_x[next_wp]-maps_x[prev_wp];
-  double n_y = maps_y[next_wp]-maps_y[prev_wp];
-  double x_x = x - maps_x[prev_wp];
-  double x_y = y - maps_y[prev_wp];
+    double n_x = maps_x[next_wp]-maps_x[prev_wp];
+    double n_y = maps_y[next_wp]-maps_y[prev_wp];
+    double x_x = x - maps_x[prev_wp];
+    double x_y = y - maps_y[prev_wp];
 
-  // find the projection of x onto n
-  double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
-  double proj_x = proj_norm*n_x;
-  double proj_y = proj_norm*n_y;
+    // find the projection of x onto n
+    double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
+    double proj_x = proj_norm*n_x;
+    double proj_y = proj_norm*n_y;
 
-  double frenet_d = distance(x_x,x_y,proj_x,proj_y);
+    double frenet_d = distance(x_x,x_y,proj_x,proj_y);
 
-  //see if d value is positive or negative by comparing it to a center point
-  double center_x = 1000-maps_x[prev_wp];
-  double center_y = 2000-maps_y[prev_wp];
-  double centerToPos = distance(center_x,center_y,x_x,x_y);
-  double centerToRef = distance(center_x,center_y,proj_x,proj_y);
+    //see if d value is positive or negative by comparing it to a center point
 
-  if (centerToPos <= centerToRef) {
-    frenet_d *= -1;
-  }
+    double center_x = 1000-maps_x[prev_wp];
+    double center_y = 2000-maps_y[prev_wp];
+    double centerToPos = distance(center_x,center_y,x_x,x_y);
+    double centerToRef = distance(center_x,center_y,proj_x,proj_y);
 
-  // calculate s value
-  double frenet_s = 0;
-  for (int i = 0; i < prev_wp; ++i) {
-    frenet_s += distance(maps_x[i],maps_y[i],maps_x[i+1],maps_y[i+1]);
-  }
+    if(centerToPos <= centerToRef)
+    {
+        frenet_d *= -1;
+    }
 
-  frenet_s += distance(0,0,proj_x,proj_y);
+    // calculate s value
+    double frenet_s = 0;
+    for(int i = 0; i < prev_wp; i++)
+    {
+        frenet_s += distance(maps_x[i],maps_y[i],maps_x[i+1],maps_y[i+1]);
+    }
 
-  return {frenet_s,frenet_d};
+    frenet_s += distance(0,0,proj_x,proj_y);
+
+    return {frenet_s,frenet_d};
 }
 
 // Transform from Frenet s,d coordinates to Cartesian x,y
